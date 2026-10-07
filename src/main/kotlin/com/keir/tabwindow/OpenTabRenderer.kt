@@ -10,58 +10,78 @@ import com.intellij.openapi.vcs.FileStatusManager
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.SimpleTextAttributes
+import com.intellij.ui.tabs.TabInfo
 import com.intellij.util.IconUtil
 import com.intellij.util.ui.JBUI
-import java.awt.BorderLayout
-import java.awt.Component
-import javax.swing.JLabel
+import java.awt.Dimension
+import java.awt.Graphics
+import javax.swing.Icon
 import javax.swing.JList
-import javax.swing.JPanel
-import javax.swing.ListCellRenderer
 
+/** Renders a row like the editor tab: same title, icon, colors and pin. */
 class OpenTabRenderer(
     private val project: Project,
     private val window: () -> EditorWindow?,
-) : ListCellRenderer<VirtualFile> {
+) : ColoredListCellRenderer<VirtualFile>() {
 
-    private val text = TextRenderer()
-    private val pin = JLabel().apply { border = JBUI.Borders.emptyRight(4) }
-    private val panel = JPanel(BorderLayout()).apply {
-        add(text, BorderLayout.CENTER)
-        add(pin, BorderLayout.EAST)
-    }
+    private var pinIcon: Icon? = null
 
-    override fun getListCellRendererComponent(
+    override fun customizeCellRenderer(
         list: JList<out VirtualFile>,
         value: VirtualFile,
         index: Int,
         selected: Boolean,
         hasFocus: Boolean,
-    ): Component {
-        text.getListCellRendererComponent(list, value, index, selected, hasFocus)
-        pin.icon = if (window()?.isFilePinned(value) == true) AllIcons.Actions.PinTab else null
-        panel.background = text.background
-        panel.toolTipText = value.presentableUrl
-        return panel
+    ) {
+        val editorWindow = window()
+        val tab = editorWindow?.findCompositeAndTab(value)?.second
+        val isActive = editorWindow?.selectedFile == value
+
+        icon = tab?.icon ?: IconUtil.getIcon(value, Iconable.ICON_FLAG_READ_STATUS, project)
+        if (tab != null) appendTabTitle(tab, isActive) else appendFallbackTitle(value, isActive)
+
+        if (!selected) tab?.tabColor?.let { background = it }
+        pinIcon = if (tab?.isPinned == true || editorWindow?.isFilePinned(value) == true) AllIcons.Actions.PinTab else null
+        toolTipText = value.presentableUrl
     }
 
-    private inner class TextRenderer : ColoredListCellRenderer<VirtualFile>() {
-        override fun customizeCellRenderer(
-            list: JList<out VirtualFile>,
-            value: VirtualFile,
-            index: Int,
-            selected: Boolean,
-            hasFocus: Boolean,
-        ) {
-            icon = IconUtil.getIcon(value, Iconable.ICON_FLAG_READ_STATUS, project)
-
-            val color = FileStatusManager.getInstance(project).getStatus(value).color
-            val style = if (window()?.selectedFile == value) SimpleTextAttributes.STYLE_BOLD else SimpleTextAttributes.STYLE_PLAIN
-            append(EditorTabPresentationUtil.getEditorTabTitle(project, value), SimpleTextAttributes(style, color))
-
-            if (FileDocumentManager.getInstance().isFileModified(value)) {
-                append(" *", SimpleTextAttributes(style, color))
-            }
+    private fun appendTabTitle(tab: TabInfo, bold: Boolean) {
+        val texts = tab.coloredText.texts
+        val attributes = tab.coloredText.attributes
+        if (texts.isEmpty()) {
+            append(tab.text, SimpleTextAttributes(styleOf(SimpleTextAttributes.STYLE_PLAIN, bold), tab.defaultForeground))
+            return
         }
+        texts.forEachIndexed { i, text ->
+            val attr = attributes.getOrNull(i) ?: SimpleTextAttributes.REGULAR_ATTRIBUTES
+            val foreground = attr.fgColor ?: tab.defaultForeground
+            append(text, SimpleTextAttributes(attr.bgColor, foreground, attr.waveColor, styleOf(attr.style, bold)))
+        }
+    }
+
+    private fun appendFallbackTitle(file: VirtualFile, bold: Boolean) {
+        val color = FileStatusManager.getInstance(project).getStatus(file).color
+        val style = styleOf(SimpleTextAttributes.STYLE_PLAIN, bold)
+        append(EditorTabPresentationUtil.getEditorTabTitle(project, file), SimpleTextAttributes(style, color))
+        if (FileDocumentManager.getInstance().isFileModified(file)) append(" *", SimpleTextAttributes(style, color))
+    }
+
+    private fun styleOf(style: Int, bold: Boolean) = if (bold) style or SimpleTextAttributes.STYLE_BOLD else style
+
+    override fun getPreferredSize(): Dimension {
+        val size = super.getPreferredSize()
+        pinIcon?.let { size.width += it.iconWidth + JBUI.scale(PIN_GAP * 2) }
+        return size
+    }
+
+    // Painted directly so the pin sits at the row's right edge, like the tab's close/pin button.
+    override fun paintComponent(g: Graphics) {
+        super.paintComponent(g)
+        val icon = pinIcon ?: return
+        icon.paintIcon(this, g, width - icon.iconWidth - JBUI.scale(PIN_GAP), (height - icon.iconHeight) / 2)
+    }
+
+    private companion object {
+        const val PIN_GAP = 4
     }
 }

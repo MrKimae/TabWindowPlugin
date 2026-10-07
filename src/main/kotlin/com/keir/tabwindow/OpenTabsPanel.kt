@@ -100,10 +100,13 @@ class OpenTabsPanel(
         }, this)
     }
 
-    // No events exist for split focus changes, tab reordering or modified markers, so poll cheaply while visible.
+    // No events exist for split focus changes, tab reordering or tab color/icon updates, so poll cheaply while visible.
     private fun schedulePoll() {
         alarm.addRequest({
-            if (isShowing) refresh()
+            if (isShowing) {
+                refresh()
+                list.repaint()
+            }
             schedulePoll()
         }, POLL_INTERVAL_MS)
     }
