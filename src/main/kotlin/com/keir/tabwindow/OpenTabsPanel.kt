@@ -1,15 +1,18 @@
 package com.keir.tabwindow
 
-import com.intellij.icons.AllIcons
+import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.actionSystem.ActionUpdateThread
-import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.ActionGroup
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.actionSystem.DataSink
+import com.intellij.openapi.actionSystem.IdeActions
+import com.intellij.openapi.actionSystem.UiDataProvider
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx
 import com.intellij.openapi.fileEditor.impl.EditorWindow
 import com.intellij.openapi.fileEditor.impl.FileEditorOpenOptions
-import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.openapi.vcs.FileStatusListener
@@ -20,6 +23,8 @@ import com.intellij.ui.PopupHandler
 import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.TreeUIHelper
 import com.intellij.ui.components.JBList
+import java.awt.Component
+import java.awt.Point
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
@@ -37,8 +42,18 @@ class OpenTabsPanel(
 
     private val model = CollectionListModel<VirtualFile>()
     // Always fit the window width so long names are clipped and the pin stays at the right edge.
-    val list = object : JBList<VirtualFile>(model) {
+    val list: JBList<VirtualFile> = object : JBList<VirtualFile>(model), UiDataProvider {
         override fun getScrollableTracksViewportWidth() = true
+
+        // Same data the editor tab label provides, so Rider's own tab popup actions work on the row.
+        override fun uiDataSnapshot(sink: DataSink) {
+            sink[CommonDataKeys.PROJECT] = project
+            if (!isLive()) return
+            sink[EditorWindow.DATA_KEY] = window
+            val file = selectedValue ?: return
+            window.findCompositeAndTab(file)?.second?.component?.let { DataSink.uiDataSnapshot(sink, it) }
+            sink[CommonDataKeys.VIRTUAL_FILE] = file
+        }
     }
 
     private var snapshot: List<Any?> = emptyList()
@@ -68,7 +83,17 @@ class OpenTabsPanel(
                 }
             }
         })
-        PopupHandler.installPopupMenu(list, createPopupGroup(), "OpenTabsPopup")
+        list.addMouseListener(object : PopupHandler() {
+            override fun invokePopup(comp: Component, x: Int, y: Int) {
+                val index = list.locationToIndex(Point(x, y))
+                if (index < 0 || !list.getCellBounds(index, index).contains(x, y)) return
+                list.selectedIndex = index
+                val group = CustomActionsSchema.getInstance().getCorrectedAction(IdeActions.GROUP_EDITOR_TAB_POPUP) as? ActionGroup ?: return
+                ActionManager.getInstance().createActionPopupMenu(ActionPlaces.EDITOR_TAB_POPUP, group)
+                    .apply { setTargetComponent(list) }
+                    .component.show(comp, x, y)
+            }
+        })
 
         list.dragEnabled = true
         list.dropMode = DropMode.INSERT
@@ -141,38 +166,6 @@ class OpenTabsPanel(
         refresh()
         list.setSelectedValue(file, true)
     }
-
-    private fun closableFiles(except: VirtualFile?): List<VirtualFile> {
-        return model.items.filter { it != except && !window.isFilePinned(it) }
-    }
-
-    private fun createPopupGroup() = DefaultActionGroup(
-        listAction("Close Tab", AllIcons.Actions.Close) { closeFiles(listOf(it)) },
-        listAction("Close Other Tabs") { closeFiles(closableFiles(except = it)) },
-        DumbAwareAction.create("Close All Tabs") { closeFiles(closableFiles(except = null)) },
-        object : DumbAwareAction("Pin Tab", null, AllIcons.Actions.PinTab) {
-            override fun getActionUpdateThread() = ActionUpdateThread.EDT
-
-            override fun update(e: AnActionEvent) {
-                val file = list.selectedValue
-                e.presentation.isEnabled = file != null
-                e.presentation.text = if (file != null && window.isFilePinned(file)) "Unpin Tab" else "Pin Tab"
-            }
-
-            override fun actionPerformed(e: AnActionEvent) {
-                val file = list.selectedValue ?: return
-                window.setFilePinned(file, !window.isFilePinned(file))
-                refresh()
-            }
-        },
-    )
-
-    private fun listAction(text: String, icon: javax.swing.Icon? = null, perform: (VirtualFile) -> Unit) =
-        object : DumbAwareAction(text, null, icon) {
-            override fun getActionUpdateThread() = ActionUpdateThread.EDT
-            override fun update(e: AnActionEvent) { e.presentation.isEnabled = list.selectedValue != null }
-            override fun actionPerformed(e: AnActionEvent) { list.selectedValue?.let(perform) }
-        }
 
     override fun dispose() = Unit
 }
