@@ -33,6 +33,7 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.DropMode
 import javax.swing.ListSelectionModel
+import javax.swing.ScrollPaneConstants
 import javax.swing.SwingUtilities
 
 /** Lists the tabs of the current (last active) editor split. */
@@ -42,7 +43,10 @@ class OpenTabsPanel(
 ) : SimpleToolWindowPanel(true, true), Disposable {
 
     private val model = CollectionListModel<VirtualFile>()
-    val list = JBList(model)
+    // Always fit the window width so long names are clipped and the pin stays at the right edge.
+    val list = object : JBList<VirtualFile>(model) {
+        override fun getScrollableTracksViewportWidth() = true
+    }
 
     var window: EditorWindow? = null
         private set
@@ -52,6 +56,7 @@ class OpenTabsPanel(
 
     init {
         list.selectionMode = ListSelectionModel.SINGLE_SELECTION
+        list.setExpandableItemsEnabled(false)
         list.emptyText.text = "No open tabs"
         list.cellRenderer = OpenTabRenderer(project) { window }
         TreeUIHelper.getInstance().installListSpeedSearch(list) { it.presentableName }
@@ -80,7 +85,13 @@ class OpenTabsPanel(
         list.dropMode = DropMode.INSERT
         list.transferHandler = TabReorderTransferHandler(::moveTab)
 
-        setContent(ScrollPaneFactory.createScrollPane(list, true))
+        setContent(
+            ScrollPaneFactory.createScrollPane(
+                list,
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER,
+            ).apply { border = null },
+        )
         subscribe()
         refresh()
         schedulePoll()

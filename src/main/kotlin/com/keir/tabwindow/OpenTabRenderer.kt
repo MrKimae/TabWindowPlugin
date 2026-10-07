@@ -13,7 +13,6 @@ import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.tabs.TabInfo
 import com.intellij.util.IconUtil
 import com.intellij.util.ui.JBUI
-import java.awt.Dimension
 import java.awt.Graphics
 import javax.swing.Icon
 import javax.swing.JList
@@ -68,17 +67,27 @@ class OpenTabRenderer(
 
     private fun styleOf(style: Int, bold: Boolean) = if (bold) style or SimpleTextAttributes.STYLE_BOLD else style
 
-    override fun getPreferredSize(): Dimension {
-        val size = super.getPreferredSize()
-        pinIcon?.let { size.width += it.iconWidth + JBUI.scale(PIN_GAP * 2) }
-        return size
-    }
-
-    // Painted directly so the pin sits at the row's right edge, like the tab's close/pin button.
+    // Painted directly so the pin sits at the row's right edge, like the tab's close/pin button;
+    // text is clipped before it so long names never run underneath.
     override fun paintComponent(g: Graphics) {
-        super.paintComponent(g)
-        val icon = pinIcon ?: return
-        icon.paintIcon(this, g, width - icon.iconWidth - JBUI.scale(PIN_GAP), (height - icon.iconHeight) / 2)
+        val icon = pinIcon
+        if (icon == null) {
+            super.paintComponent(g)
+            return
+        }
+        val pinLeft = width - icon.iconWidth - JBUI.scale(PIN_GAP)
+        if (isOpaque) {
+            g.color = background
+            g.fillRect(0, 0, width, height)
+        }
+        val textGraphics = g.create()
+        try {
+            textGraphics.clipRect(0, 0, pinLeft - JBUI.scale(PIN_GAP), height)
+            super.paintComponent(textGraphics)
+        } finally {
+            textGraphics.dispose()
+        }
+        icon.paintIcon(this, g, pinLeft, (height - icon.iconHeight) / 2)
     }
 
     private companion object {
