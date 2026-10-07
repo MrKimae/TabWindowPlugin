@@ -55,7 +55,7 @@ class OpenTabsPanel(
                 val file = fileAt(e) ?: return
                 when {
                     SwingUtilities.isMiddleMouseButton(e) -> closeFiles(listOf(file))
-                    SwingUtilities.isLeftMouseButton(e) && !e.isPopupTrigger -> open(file, requestFocus = e.clickCount >= 2)
+                    SwingUtilities.isLeftMouseButton(e) && !e.isPopupTrigger -> open(file, requestFocus = true)
                 }
             }
         })
