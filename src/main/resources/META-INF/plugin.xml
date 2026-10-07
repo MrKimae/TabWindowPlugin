@@ -1,0 +1,21 @@
+<idea-plugin>
+    <id>com.keir.tabwindow</id>
+    <name>Open Tabs Window</name>
+    <vendor>Keir</vendor>
+
+    <description><![CDATA[
+        Adds an <b>Open Tabs</b> tool window that lists the tabs of the current editor split,
+        like the Switcher, but docked as a regular tool window (like Project and Bookmarks).
+        When the editor is split, the list follows the split that was last active.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="Open Tabs"
+                    anchor="left"
+                    secondary="true"
+                    icon="AllIcons.Actions.ListFiles"
+                    factoryClass="com.keir.tabwindow.OpenTabsToolWindowFactory"/>
+    </extensions>
+</idea-plugin>
