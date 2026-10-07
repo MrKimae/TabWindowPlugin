@@ -49,4 +49,5 @@ Open the window via **View → Tool Windows → Open Tabs**.
 | `src/main/kotlin/com/keir/tabwindow/OpenTabsToolWindowFactory.kt` | Tool window registration |
 | `src/main/kotlin/com/keir/tabwindow/OpenTabsPanel.kt` | List, tracking of the current split, actions |
 | `src/main/kotlin/com/keir/tabwindow/OpenTabRenderer.kt` | Cell rendering |
+| `src/main/kotlin/com/keir/tabwindow/TabReorder.kt` | Drag and drop reordering of editor tabs |
 | `src/main/resources/META-INF/plugin.xml` | Plugin manifest |

@@ -31,6 +31,7 @@ import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import javax.swing.DropMode
 import javax.swing.ListSelectionModel
 import javax.swing.SwingUtilities
 
@@ -74,6 +75,10 @@ class OpenTabsPanel(
             }
         })
         PopupHandler.installPopupMenu(list, createPopupGroup(), "OpenTabsPopup")
+
+        list.dragEnabled = true
+        list.dropMode = DropMode.INSERT
+        list.transferHandler = TabReorderTransferHandler(::moveTab)
 
         setContent(ScrollPaneFactory.createScrollPane(list, true))
         subscribe()
@@ -154,6 +159,18 @@ class OpenTabsPanel(
         refresh()
     }
 
+    /** Moves the tab at [from] so it is inserted before the tab currently at [dropIndex]. */
+    private fun moveTab(from: Int, dropIndex: Int) {
+        val target = liveWindow() ?: return
+        val file = model.items.getOrNull(from) ?: return
+        val newIndex = if (dropIndex > from) dropIndex - 1 else dropIndex
+        if (newIndex == from) return
+        val tab = target.findCompositeAndTab(file)?.second ?: return
+        if (!TabReorder.reorder(target.tabbedPane.tabs, tab, newIndex)) return
+        refresh()
+        list.setSelectedValue(file, true)
+    }
+
     private fun closableFiles(except: VirtualFile?): List<VirtualFile> {
         val target = window ?: return emptyList()
         return model.items.filter { it != except && !target.isFilePinned(it) }
@@ -163,7 +180,7 @@ class OpenTabsPanel(
         listAction("Close Tab", AllIcons.Actions.Close) { closeFiles(listOf(it)) },
         listAction("Close Other Tabs") { closeFiles(closableFiles(except = it)) },
         DumbAwareAction.create("Close All Tabs") { closeFiles(closableFiles(except = null)) },
-        object : DumbAwareAction("Pin Tab", null, AllIcons.General.Pin_tab) {
+        object : DumbAwareAction("Pin Tab", null, AllIcons.Actions.PinTab) {
             override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
             override fun update(e: AnActionEvent) {
