@@ -6,7 +6,6 @@ import com.intellij.openapi.fileEditor.impl.EditorTabPresentationUtil
 import com.intellij.openapi.fileEditor.impl.EditorWindow
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Iconable
-import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vcs.FileStatusManager
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.ColoredListCellRenderer
@@ -63,18 +62,6 @@ class OpenTabRenderer(
             if (FileDocumentManager.getInstance().isFileModified(value)) {
                 append(" *", SimpleTextAttributes(style, color))
             }
-            locationOf(value)?.let { append("  $it", SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES) }
         }
-    }
-
-    private fun locationOf(file: VirtualFile): String? {
-        val parent = file.parent ?: return null
-        val basePath = project.basePath
-        if (basePath != null) {
-            FileUtil.getRelativePath(basePath, parent.path, '/')
-                ?.takeUnless { it.startsWith("..") }
-                ?.let { return if (it == ".") null else it }
-        }
-        return FileUtil.getLocationRelativeToUserHome(parent.presentableUrl)
     }
 }
