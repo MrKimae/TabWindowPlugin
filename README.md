@@ -47,7 +47,8 @@ Open the window via **View → Tool Windows → Open Tabs**.
 | Path | Description |
 |------|-------------|
 | `src/main/kotlin/com/keir/tabwindow/OpenTabsToolWindowFactory.kt` | Tool window registration |
-| `src/main/kotlin/com/keir/tabwindow/OpenTabsPanel.kt` | List, tracking of the current split, actions |
+| `src/main/kotlin/com/keir/tabwindow/OpenTabsController.kt` | One content tab per split, follows the active split |
+| `src/main/kotlin/com/keir/tabwindow/OpenTabsPanel.kt` | Tab list and actions for a single split |
 | `src/main/kotlin/com/keir/tabwindow/OpenTabRenderer.kt` | Cell rendering |
 | `src/main/kotlin/com/keir/tabwindow/TabReorder.kt` | Drag and drop reordering of editor tabs |
 | `src/main/resources/META-INF/plugin.xml` | Plugin manifest |
