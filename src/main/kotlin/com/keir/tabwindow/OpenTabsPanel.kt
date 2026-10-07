@@ -51,7 +51,8 @@ class OpenTabsPanel(
             if (!isLive()) return
             sink[EditorWindow.DATA_KEY] = window
             val file = selectedValue ?: return
-            window.findCompositeAndTab(file)?.second?.component?.let { DataSink.uiDataSnapshot(sink, it) }
+            val tab = window.findCompositeAndTab(file)?.second ?: return
+            DataSink.uiDataSnapshot(sink, tab.component)
             sink[CommonDataKeys.VIRTUAL_FILE] = file
         }
     }
@@ -145,13 +146,14 @@ class OpenTabsPanel(
     }
 
     private fun open(file: VirtualFile, requestFocus: Boolean) {
-        val target = liveWindow() ?: return
+        val target = liveWindow()?.takeIf { file in it.fileList } ?: return
         FileEditorManagerEx.getInstanceEx(project).openFile(file, target, FileEditorOpenOptions(requestFocus = requestFocus))
     }
 
     private fun closeFiles(files: List<VirtualFile>) {
         val target = liveWindow() ?: return
-        files.forEach { target.closeFile(it) }
+        val open = target.fileList.toSet()
+        files.filter { it in open }.forEach { target.closeFile(it) }
         refresh()
     }
 

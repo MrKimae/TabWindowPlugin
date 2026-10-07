@@ -40,7 +40,8 @@ class OpenTabRenderer(
         if (tab != null) appendTabTitle(tab, isActive) else appendFallbackTitle(value, isActive)
 
         if (!selected) tab?.tabColor?.let { background = it }
-        pinIcon = if (tab?.isPinned == true || editorWindow?.isFilePinned(value) == true) AllIcons.Actions.PinTab else null
+        // The row may be stale (tab just moved/closed) until the next refresh, so only trust the live tab.
+        pinIcon = if (tab?.isPinned == true) AllIcons.Actions.PinTab else null
         toolTipText = value.presentableUrl
     }
 
